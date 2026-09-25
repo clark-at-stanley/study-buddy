@@ -847,8 +847,6 @@ window.StudyEngine = (function(){
       }
       var html="";
       scopes.forEach(function(scope){
-        var anyData=scope.cards.some(function(c){ return scope.modes.some(function(m){ return !!stats[statKey(scope.id,c.q,m)]; }); });
-        if(!anyData) return;
         html+='<p class="rp-title">'+esc(scope.label)+' \u2014 word mastery</p>';
         html+='<div class="mastery-table" style="grid-template-columns:auto minmax(110px,1.5fr) repeat('+scope.modes.length+',1fr);">';
         html+='<div class="mastery-row mastery-head"><div class="mastery-cell"></div><div class="mastery-word"></div>'+
