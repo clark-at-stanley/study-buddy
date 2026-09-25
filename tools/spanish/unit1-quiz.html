@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Unit 1 Quiz Review — Study Tool</title>
+<link rel="stylesheet" href="../../assets/study.css">
+</head>
+<body>
+  <main class="page" id="app"></main>
+
+  <script src="../../assets/study-engine.js"></script>
+
+  <script>
+    // ---- Numbers 1-30, tens to 100, and a spread of compound examples ----
+    var NUMBER_CARDS = [
+      { q: "1", a: "uno" }, { q: "2", a: "dos" }, { q: "3", a: "tres" }, { q: "4", a: "cuatro" },
+      { q: "5", a: "cinco" }, { q: "6", a: "seis" }, { q: "7", a: "siete" }, { q: "8", a: "ocho" },
+      { q: "9", a: "nueve" }, { q: "10", a: "diez" }, { q: "11", a: "once" }, { q: "12", a: "doce" },
+      { q: "13", a: "trece" }, { q: "14", a: "catorce" }, { q: "15", a: "quince" }, { q: "16", a: "dieciséis" },
+      { q: "17", a: "diecisiete" }, { q: "18", a: "dieciocho" }, { q: "19", a: "diecinueve" }, { q: "20", a: "veinte" },
+      { q: "21", a: "veintiuno" }, { q: "22", a: "veintidós" }, { q: "23", a: "veintitrés" }, { q: "24", a: "veinticuatro" },
+      { q: "25", a: "veinticinco" }, { q: "26", a: "veintiséis" }, { q: "27", a: "veintisiete" }, { q: "28", a: "veintiocho" },
+      { q: "29", a: "veintinueve" }, { q: "30", a: "treinta" },
+      { q: "40", a: "cuarenta" }, { q: "50", a: "cincuenta" }, { q: "60", a: "sesenta" }, { q: "70", a: "setenta" },
+      { q: "80", a: "ochenta" }, { q: "90", a: "noventa" }, { q: "100", a: "cien" },
+      { q: "31", a: "treinta y uno" }, { q: "35", a: "treinta y cinco" },
+      { q: "42", a: "cuarenta y dos" }, { q: "48", a: "cuarenta y ocho" },
+      { q: "53", a: "cincuenta y tres" }, { q: "57", a: "cincuenta y siete" },
+      { q: "64", a: "sesenta y cuatro" }, { q: "69", a: "sesenta y nueve" },
+      { q: "73", a: "setenta y tres" }, { q: "78", a: "setenta y ocho" },
+      { q: "85", a: "ochenta y cinco" }, { q: "96", a: "noventa y seis" }
+    ];
+
+    // ---- Telling time: the building-block phrases, then full digital<->Spanish examples ----
+    var TIME_CARDS = [
+      { q: "What time is it?", a: "Qué hora es" },
+      { q: "It's one o'clock.", a: "Es la una" },
+      { q: "It's... (time)", a: "Son las" },
+      { q: "quarter past", a: "y cuarto" },
+      { q: "quarter to", a: "menos cuarto" },
+      { q: "thirty, half-past", a: "y media", orig: "y medias", changed: true },
+      { q: "1:00", a: "Es la una" },
+      { q: "2:00", a: "Son las dos" },
+      { q: "12:00", a: "Son las doce" },
+      { q: "10:05", a: "Son las diez y cinco" },
+      { q: "4:10", a: "Son las cuatro y diez" },
+      { q: "3:20", a: "Son las tres y veinte" },
+      { q: "6:15", a: "Son las seis y cuarto" },
+      { q: "5:15", a: "Son las cinco y cuarto" },
+      { q: "6:30", a: "Son las seis y media" },
+      { q: "1:30", a: "Es la una y media" },
+      { q: "2:45", a: "Son las tres menos cuarto" },
+      { q: "7:45", a: "Son las ocho menos cuarto" },
+      { q: "8:50", a: "Son las nueve menos diez" },
+      { q: "9:35", a: "Son las diez menos veinticinco" },
+      { q: "11:40", a: "Son las doce menos veinte" }
+    ];
+
+    StudyEngine.mount({
+      title: "Unit 1 Quiz Review",
+      subtitle: "Vocab · Numbers & Time · Months, Seasons & Weather",
+      eyebrow: "Spanish · Unit 1",
+      accent: "#c9573c",
+      storageKey: "spanish-unit1-quiz",
+      modes: ["match", "build", "write"],
+      strictMatch: true,
+
+      sections: [
+        {
+          id: "vocab",
+          name: "Vocab",
+          cards: [
+            // Greetings & introductions
+            { q: "Good morning!", a: "Buenos días" },
+            { q: "Good evening!", a: "Buenas noches" },
+            { q: "Good afternoon!", a: "Buenas tardes" },
+            { q: "Hello!", a: "Hola" },
+            { q: "What is your name?", a: "Cómo te llamas" },
+            { q: "My name is...", a: "Me llamo" },
+            { q: "Delighted.", a: "Encantado" },
+            { q: "Likewise.", a: "Igualmente" },
+            { q: "Pleased to meet you.", a: "Mucho gusto" },
+            { q: "Sir, Mr.", a: "Señor" },
+            { q: "Madam, Mrs.", a: "Señora" },
+            { q: "Miss", a: "Señorita" },
+            { q: "How are you? (formal)", a: "Cómo está usted" },
+            { q: "How are you? (familiar)", a: "Cómo estás" },
+            { q: "What's happening?", a: "Qué pasa" },
+            { q: "How are you?", a: "Qué tal" },
+            { q: "And you?", a: "Y tú" },
+            { q: "(very) well", a: "Muy bien" },
+            { q: "Nothing", a: "Nada" },
+            { q: "Okay, so-so", a: "Regular" },
+            { q: "Thank you", a: "Gracias" },
+            { q: "Good-bye!", a: "Adiós" },
+            { q: "See you later.", a: "Hasta luego" },
+            { q: "See you tomorrow.", a: "Hasta mañana" },
+            { q: "See you!", a: "Nos vemos" },
+
+            // Classroom objects
+            { q: "pen", a: "el bolígrafo" },
+            { q: "folder", a: "la carpeta" },
+            { q: "notebook", a: "el cuaderno" },
+            { q: "student", a: "el estudiante" },
+            { q: "sheet of paper", a: "la hoja de papel" },
+            { q: "pencil", a: "el lápiz" },
+            { q: "book", a: "el libro" },
+            { q: "teacher", a: "el profesor" },
+            { q: "(student) desk", a: "el pupitre" },
+            { q: "classroom", a: "la sala de clases" },
+            { q: "year", a: "el año" },
+            { q: "day", a: "el día" },
+            { q: "month", a: "el mes" },
+
+            // Calendar / date phrases
+            { q: "week", a: "la semana" },
+            { q: "What day is today?", a: "Qué día es hoy" },
+            { q: "What is the date?", a: "Cuál es la fecha" },
+            { q: "It's the 3rd of January.", a: "Es el tres de enero" },
+            { q: "It's the first of...", a: "Es el primero de" },
+            { q: "today", a: "hoy" },
+            { q: "tomorrow", a: "mañana" },
+            { q: "how many?", a: "Cuántos" },
+            { q: "in", a: "en" },
+            { q: "there is / there are", a: "hay" },
+            { q: "please", a: "por favor" },
+            { q: "How do you say...?", a: "Cómo se dice" },
+            { q: "You say...", a: "Se dice" },
+            { q: "How is...spelled?", a: "Cómo se escribe" },
+            { q: "What does...mean?", a: "Qué quiere decir" },
+            { q: "It means...", a: "Quiere decir" },
+
+            // Body parts
+            { q: "eye", a: "el ojo" },
+            { q: "mouth", a: "la boca" },
+            { q: "stomach", a: "el estómago" },
+            { q: "finger", a: "el dedo" },
+            { q: "nose", a: "la nariz" },
+            { q: "hand", a: "la mano" },
+            { q: "foot", a: "el pie" },
+            { q: "head", a: "la cabeza" },
+            { q: "leg", a: "la pierna" }
+          ]
+        },
+        {
+          id: "numbers-time",
+          name: "Numbers, Time",
+          cards: NUMBER_CARDS.concat(TIME_CARDS)
+        },
+        {
+          id: "months-seasons-temps",
+          name: "Months, Seasons, Temps",
+          cards: [
+            // Months
+            { q: "January", a: "enero" },
+            { q: "February", a: "febrero" },
+            { q: "March", a: "marzo" },
+            { q: "April", a: "abril" },
+            { q: "May", a: "mayo" },
+            { q: "June", a: "junio" },
+            { q: "July", a: "julio" },
+            { q: "August", a: "agosto" },
+            { q: "September", a: "septiembre" },
+            { q: "October", a: "octubre" },
+            { q: "November", a: "noviembre" },
+            { q: "December", a: "diciembre" },
+
+            // Seasons
+            { q: "season", a: "la estación" },
+            { q: "winter", a: "el invierno" },
+            { q: "fall, autumn", a: "el otoño" },
+            { q: "spring", a: "la primavera" },
+            { q: "summer", a: "el verano" },
+
+            // Weather
+            { q: "What's the weather like?", a: "Qué tiempo hace" },
+            { q: "It's hot.", a: "Hace calor" },
+            { q: "It's cold.", a: "Hace frío" },
+            { q: "It's sunny.", a: "Hace sol" },
+            { q: "It's windy.", a: "Hace viento" },
+            { q: "It's raining.", a: "Llueve" },
+            { q: "It's snowing.", a: "Nieva" }
+          ]
+        }
+      ]
+    });
+  </script>
+</body>
+</html>

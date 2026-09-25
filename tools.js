@@ -33,15 +33,20 @@ window.STUDY_SITE = {
   siteTagline: "A home for the study tools we build through the year.",
 
   subjects: [
-    // This site starts empty. Add subjects by copying a block like this one:
-    // {
-    //   id: "math",
-    //   name: "Math",
-    //   blurb: "Numbers, fractions, and problem solving.",
-    //   accent: "#4c7a9a",
-    //   tools: [
-    //     { title: "Fractions Review", topic: "Fractions", file: "tools/math/fractions.html", date: "2026-10-01", note: "Adding, subtracting, and simplifying fractions." }
-    //   ]
-    // },
+    {
+      id: "spanish",
+      name: "Spanish",
+      blurb: "Vocabulary, numbers, and everyday phrases.",
+      accent: "#c9573c",
+      tools: [
+        {
+          title: "Unit 1 Quiz Review",
+          topic: "Vocab, Numbers, Months & Weather",
+          file: "tools/spanish/unit1-quiz.html",
+          date: "2026-09-25",
+          note: "Match \u2192 Some help \u2192 From scratch, with word-by-word mastery tracking. Covers greetings, classroom objects, calendar phrases, body parts, numbers 1\u2013100, telling time, months, seasons, and weather."
+        }
+      ]
+    }
   ]
 };
