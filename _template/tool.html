@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>New Study Tool</title>
+<!-- Engine styles (shared across all tools) -->
+<link rel="stylesheet" href="../../assets/study.css">
+</head>
+<body>
+  <main class="page" id="app"></main>
+
+  <!-- Engine (shared across all tools) -->
+  <script src="../../assets/study-engine.js"></script>
+
+  <!--
+    ============================================================
+    FILL THIS IN FOR EACH NEW TOOL
+    ============================================================
+    - title / subtitle / eyebrow : shown at the top
+    - accent   : the subject color (Spanish #d98a2b, Science #5aa9a0, ...)
+    - storageKey : UNIQUE per tool (used to save progress/history). Never reuse.
+    - modes    : any of "flash", "write", "mc", "match" — see STANDARD.md §1.
+                 (Science tools MUST include "flash" and "write".)
+    - sections : one or more; each has an id, a name, and cards.
+                 Each card: { q, a }  (+ optional  orig, changed )
+                   q       : the question / prompt
+                   a       : the CORRECT answer (use corrected facts — STANDARD §6)
+                   orig    : the student's ORIGINAL wording (only if we changed it)
+                   changed : true  (only if we corrected it — STANDARD §4)
+
+    Path & registration (STANDARD §9):
+    - Save this file as  tools/<subject>/<name>.html
+    - Fix the two "../../" paths above if your folder depth differs (it won't for
+      tools/<subject>/<name>.html — leave as-is).
+    - Add an entry to tools.js.
+    ============================================================
+  -->
+  <script>
+    StudyEngine.mount({
+      title: "Tool Title Here",
+      subtitle: "Short description · Test on M/D",
+      eyebrow: "Subject · Topic",
+      accent: "#5aa9a0",
+      storageKey: "science-example",   // <-- make this unique per tool
+      modes: ["flash", "write"],       // Science default; add "mc" if it fits
+
+      sections: [
+        {
+          id: "section1",
+          name: "First Section",
+          cards: [
+            { q: "First question?", a: "The correct answer." },
+            // Example of a corrected item:
+            // { q: "…?", a: "Corrected answer.", orig: "Her original answer.", changed: true },
+          ]
+        }
+        // Add more sections as needed. If there is more than one section,
+        // an "Everything" option is added automatically.
+      ]
+    });
+  </script>
+</body>
+</html>
