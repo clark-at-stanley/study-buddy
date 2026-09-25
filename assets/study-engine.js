@@ -120,7 +120,7 @@ window.StudyEngine = (function(){
         '<div id="practiceBody"></div>'+
       '</div>'+
       '<div class="card" id="studyCard">'+
-        '<div class="stats-row"><span id="statProgress"></span><span id="statBest" class="best-badge"></span></div>'+
+        '<div class="stats-row"><span id="statProgress"></span><span class="stats-row-actions"><span id="statBest" class="best-badge"></span><button type="button" class="link-btn hidden" id="stopRoundBtn">Stop round</button></span></div>'+
         '<div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>'+
         '<div id="studyArea"></div>'+
       '</div>'+
@@ -137,6 +137,7 @@ window.StudyEngine = (function(){
     var elStudyCard = document.getElementById("studyCard");
     var elStatProgress = document.getElementById("statProgress");
     var elStatBest = document.getElementById("statBest");
+    var elStopRound = document.getElementById("stopRoundBtn");
     var elProgressFill = document.getElementById("progressFill");
     var elResults = document.getElementById("resultsSection");
     var elResultsBody = document.getElementById("resultsBody");
@@ -299,6 +300,7 @@ window.StudyEngine = (function(){
       renderStartScreen();
     }
     function renderStartScreen(){
+      elStopRound.classList.add("hidden");
       var total=cards().length;
       var bits=[];
       if(USE_TRACKS){ bits.push(trackLabel(trackId)); bits.push(sectionLabel(groupId)); if(trackModes().length>1) bits.push(MODE_LABELS[mode]||mode); }
@@ -310,6 +312,7 @@ window.StudyEngine = (function(){
       document.getElementById("beginBtn").onclick = function(){ collapse(); renderCurrent(); };
     }
     function updateProgress(){
+      elStopRound.classList.remove("hidden");
       var total=cards().length;
       if(mode==="match"){
         var totalRounds=Math.max(1,Math.ceil(total/5));
@@ -794,6 +797,7 @@ window.StudyEngine = (function(){
     }
 
     async function renderSummary(){
+      elStopRound.classList.add("hidden");
       elProgressFill.style.width="100%"; elStatProgress.textContent="Done";
       var total=cards().length; var score=total-uniq(missed).length;
       await saveBest(score);
@@ -1064,6 +1068,7 @@ window.StudyEngine = (function(){
     elClosePractice.onclick = function(){ closePractice(); };
 
     elViewResults.onclick=openResults; elCloseResults.onclick=closeResults;
+    elStopRound.onclick = async function(){ await startRun(); openResults(); };
 
     // ---- Init ----
     renderChips(); startRun();
