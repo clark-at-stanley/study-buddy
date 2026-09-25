@@ -192,14 +192,17 @@ h1{ font-family:var(--font-display); font-weight:700; font-size:26px; margin:0 0
 .mastery-word, .mastery-cell{ background:var(--panel-2); padding:7px 8px; display:flex; align-items:center; }
 .mastery-head .mastery-word, .mastery-head .mastery-cell{ background:var(--panel); font-family:var(--font-mono); font-size:10px; letter-spacing:0.06em; text-transform:uppercase; color:var(--ink-dim); }
 .mastery-cell{ justify-content:center; }
-.mastery-pill{ display:inline-block; font-size:11.5px; font-weight:600; padding:2px 8px; border-radius:999px; white-space:nowrap; }
-.mastery-pill.mastery-solid{ background:rgba(76,154,106,0.22); color:#8fd6ac; border:1px solid rgba(76,154,106,0.5); }
-.mastery-pill.mastery-practice{ background:rgba(193,68,59,0.18); color:#f0a59f; border:1px solid rgba(193,68,59,0.4); }
 .mastery-dash{ color:var(--ink-dim); opacity:0.5; }
+.mastery-legend{ font-size:12px; color:var(--ink-dim); margin:4px 0 10px; display:flex; align-items:center; flex-wrap:wrap; gap:2px; }
+.mastery-dots{ display:inline-flex; align-items:center; gap:4px; }
+.mastery-dot{ width:9px; height:9px; border-radius:50%; display:inline-block; flex:0 0 auto; }
+.mastery-dot.dot-correct{ background:var(--good); }
+.mastery-dot.dot-wrong{ background:var(--bad); }
+.mastery-dot.dot-empty{ background:var(--rule); opacity:0.6; }
 @media (max-width:480px){
   .mastery-table{ font-size:11.5px; }
   .mastery-word, .mastery-cell{ padding:6px 5px; }
-  .mastery-pill{ font-size:10px; padding:2px 6px; }
+  .mastery-dot{ width:8px; height:8px; }
 }
 
 /* Focused Practice: selection bar (in Results) + copy-practice grid */

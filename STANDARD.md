@@ -82,24 +82,24 @@ This reads to the student as **Match → Some help → From scratch** — recogn
 
 ## 3a. Word mastery (per word, per mode)
 
-Beyond round-level history, the engine tracks **mastery per word per mode** —
-not just "missed how many times" but "is this word actually solid right now."
+Beyond round-level history, the engine tracks **the last 3 attempts per word,
+per mode** — not a single collapsed label, the actual recent sequence.
 
-- **Rule:** a word is **Solid** in a mode once the last 3 attempts in that mode
-  came back correct **in a row**. Any wrong attempt resets that word's streak to
-  0 — it goes back to **Needs practice** until he strings together 3 clean
-  answers again. Never attempted in that mode = **Not tried yet** (shown as a
-  plain dash, not a warning — it isn't a red flag).
-- **Why per-mode, not one blended score:** recognizing a word (Match) and
+- **Display:** each word × mode cell in "View results" shows **3 small dots**,
+  oldest to newest, left to right — green (correct), red (missed), or grey
+  (not yet attempted, padding out slots that don't have history yet). Never
+  attempted at all in that mode shows a plain dash instead of three greys —
+  a dash reads as "nothing yet," not a wall of grey dots.
+- **Why dots instead of a computed label** ("Solid" / "Needs practice"): a
+  single label collapses information a parent actually wants. `grey·red·green`
+  and `grey·green·green` were both "2 attempts, currently on a streak of 1-2"
+  under the old label — but one is "stumbled, then recovered" and the other is
+  "clean so far." The dots show the difference; a label can't.
+- **Why per-mode, not one blended row:** recognizing a word (Match) and
   producing it from memory (From scratch) are genuinely different skills. A
   word solid in one tier and shaky in another is a real, useful signal —
-  blending them into one number would erase exactly the distinction the
+  blending them into one row would erase exactly the distinction the
   three-tier progression (§1) exists to surface.
-- **MUST** — The "View results" screen shows a **word × mode table** for each
-  section/group: rows are the section's words, columns are the modes this tool
-  offers, cells show Solid / Needs practice / Not tried yet. This sits above
-  the existing miss-pattern detail (§3), since "what does he need to practice
-  right now" is the more immediate question.
 - This is tracked automatically by the engine for every mode (`flash`, `write`,
   `mc`, `match`, `build`, `conj`, `conjtable`) — a new tool gets it for free,
   nothing to configure.
@@ -120,7 +120,7 @@ focused drill:
    ordinary write-in grading (accept/override, accent row, corrected-answer
    badges, all identical to normal From-scratch mode).
 - **MUST** — The mini quiz's per-word results feed the *same* word-mastery
-  streaks (§3a) as any other From-scratch attempt — practicing this way
+  history (§3a) as any other From-scratch attempt — practicing this way
   genuinely moves the needle on his real mastery data, it isn't a side track.
   It's recorded under the `write` mode key specifically, so a tool needs
   `write` among its declared `modes` for Focused Practice results to have a
@@ -130,8 +130,8 @@ focused drill:
   there's no stable, comparable baseline for an ad-hoc, differently-sized set
   of words each time.
 - The copy-practice phase itself is **not** graded or recorded anywhere — it's
-  looking-at-the-answer practice, not a recall test, so it shouldn't move the
-  mastery streak (only the quiz that follows it does).
+  looking-at-the-answer practice, not a recall test, so it shouldn't add a dot
+  to the mastery history (only the quiz that follows it does).
 
 ## 4. Corrected answers (when we fix the student's original)
 

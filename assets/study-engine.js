@@ -250,11 +250,13 @@ window.StudyEngine = (function(){
     }
     window.addEventListener("beforeunload", saveInProgressRoundSync);
 
-    // ---- Word mastery: per (section-scope, question, mode) streaks ----
-    // A word is "Solid" in a mode once the last MASTERY_STREAK attempts in that
-    // mode came back correct in a row; any wrong attempt resets the streak to 0.
-    // "Not tried yet" just means no attempts recorded there — never a red flag.
-    var MASTERY_STREAK = 3;
+    // ---- Word mastery: per (section-scope, question, mode) attempt history ----
+    // Each attempt is recorded per (word, mode), keeping the last HISTORY_LENGTH
+    // outcomes so the results table can show them as colored dots (oldest to
+    // newest) rather than collapsing them into a single label. `streak` (0 if
+    // the most recent attempt was wrong, otherwise the current run length) is
+    // kept alongside for the "not attempted yet" fallback on older saved data.
+    var HISTORY_LENGTH = 3; // how many recent attempts are shown as dots in the results table
     function wordStatsKey(){ return storageKey+":wordstats"; }
     var wordStatsCache = null; // loaded lazily, kept in memory for the rest of the session
     async function loadWordStats(){
@@ -272,17 +274,12 @@ window.StudyEngine = (function(){
       var scope=scopeForCard(card), q=card.q;
       loadWordStats().then(function(stats){
         var k=statKey(scope,q,modeId);
-        var s=stats[k] || { streak:0, attempts:0, correct:0 };
+        var s=stats[k] || { streak:0, attempts:0, correct:0, hist:[] };
         s.attempts++; if(isCorrect){ s.streak++; s.correct++; } else { s.streak=0; }
+        s.hist=(s.hist||[]); s.hist.push(isCorrect); if(s.hist.length>HISTORY_LENGTH) s.hist.shift();
         stats[k]=s;
         saveWordStats();
       });
-    }
-    async function wordStatus(scope,q,modeId){
-      var stats=await loadWordStats();
-      var s=stats[statKey(scope,q,modeId)];
-      if(!s || !s.attempts) return "new";
-      return s.streak>=MASTERY_STREAK ? "solid" : "practice";
     }
 
     // ---- Lifecycle ----
@@ -833,6 +830,23 @@ window.StudyEngine = (function(){
     var practiceCandidates = []; // built fresh each time the mastery table renders: [{scope,q,card}]
     var practiceSelected = [];   // indices into practiceCandidates currently checked, max 5
 
+    function renderMasteryDots(s){
+      if(!s || !s.attempts) return '<span class="mastery-dash">\u2014</span>';
+      var hist = s.hist;
+      if(!hist || !hist.length){
+        // Data saved before per-attempt history was tracked: fall back to a
+        // single dot reflecting the current streak, so older progress shows
+        // as *something* rather than looking like it vanished.
+        hist = [ s.streak>0 ];
+      }
+      var slots = hist.slice(-HISTORY_LENGTH);
+      while(slots.length<HISTORY_LENGTH) slots.unshift(null);
+      return '<span class="mastery-dots">'+slots.map(function(v){
+        var cls = v===true ? "dot-correct" : (v===false ? "dot-wrong" : "dot-empty");
+        return '<span class="mastery-dot '+cls+'"></span>';
+      }).join("")+'</span>';
+    }
+
     async function buildMasteryTable(){
       var stats=await loadWordStats();
       practiceCandidates = [];
@@ -858,10 +872,7 @@ window.StudyEngine = (function(){
           html+='<div class="mastery-row"><div class="mastery-cell"><input type="checkbox" class="practice-check" data-idx="'+idx+'"></div><div class="mastery-word">'+esc(c.q)+'</div>'+
             scope.modes.map(function(m){
               var s=stats[statKey(scope.id,c.q,m)];
-              var status=(!s||!s.attempts)?"new":(s.streak>=MASTERY_STREAK?"solid":"practice");
-              var inner=(status==="new")?'<span class="mastery-dash">\u2014</span>'
-                :'<span class="mastery-pill mastery-'+status+'">'+(status==="solid"?"Solid":"Needs practice")+'</span>';
-              return '<div class="mastery-cell">'+inner+'</div>';
+              return '<div class="mastery-cell">'+renderMasteryDots(s)+'</div>';
             }).join("")+
             '</div>';
         });
@@ -881,13 +892,18 @@ window.StudyEngine = (function(){
       var masteryHtml=await buildMasteryTable();
       var groups={};
       history.forEach(function(h){ var k=h.section+"|@|"+h.mode; (groups[k]=groups[k]||[]).push(h); });
+      var masteryLegend = masteryHtml ?
+        '<p class="mastery-legend"><span class="mastery-dot dot-correct"></span> correct &nbsp; '+
+        '<span class="mastery-dot dot-wrong"></span> missed &nbsp; '+
+        '<span class="mastery-dot dot-empty"></span> not yet attempted &mdash; oldest to newest, left to right</p>'
+        : "";
       var practiceBar = masteryHtml ? (
         '<div class="practice-bar" id="practiceBar">'+
           '<span id="practiceCount">0 of 5 words selected for focused practice</span>'+
           '<button class="btn btn-primary" id="startPracticeBtn" disabled>Start practice &rsaquo;</button>'+
         '</div>'
       ) : "";
-      var html=masteryHtml+practiceBar+(masteryHtml?'<hr style="border:none;border-top:1px solid var(--rule);margin:18px 0;">':'')+
+      var html=masteryLegend+masteryHtml+practiceBar+(masteryHtml?'<hr style="border:none;border-top:1px solid var(--rule);margin:18px 0;">':'')+
         '<p class="results-intro">Every completed round is saved here. The badge shows how many times you\u2019ve missed each question across all your runs — the higher, the more worth drilling.</p>';
       Object.keys(groups).forEach(function(key){
         var runs=groups[key].slice().sort(function(a,b){ return b.t-a.t; });
