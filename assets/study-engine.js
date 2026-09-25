@@ -16,7 +16,7 @@ window.StudyEngine = (function(){
   function norm(s){ return String(s||"").toLowerCase().replace(/[^a-z0-9 ]+/g," ").replace(/\s+/g," ").trim(); }
   function shuffle(n){ var a=[]; for(var i=0;i<n;i++)a.push(i); for(var i=a.length-1;i>0;i--){ var j=Math.floor(Math.random()*(i+1)); var t=a[i];a[i]=a[j];a[j]=t; } return a; }
   function shuffleArr(arr){ var a=arr.slice(); for(var i=a.length-1;i>0;i--){ var j=Math.floor(Math.random()*(i+1)); var t=a[i];a[i]=a[j];a[j]=t; } return a; }
-  function hasStore(){ return typeof window!=="undefined" && window.storage && typeof window.storage.get==="function"; }
+  function hasStore(){ try{ return typeof window!=="undefined" && !!window.localStorage; }catch(e){ return false; } }
 
   var MODE_LABELS = { flash:"Flashcards", write:"From scratch", mc:"Multiple choice", match:"Match", conj:"Random Pronoun", conjtable:"All Pronouns", build:"Some help" };
   var DEFAULT_PRONOUNS = ["yo","tú","él/ella","nosotros","vosotros","ellos/ellas"];
@@ -114,6 +114,11 @@ window.StudyEngine = (function(){
         '<button class="link-btn" id="closeResultsBtn">&larr; Back</button></div>'+
         '<div id="resultsBody"></div>'+
       '</div>'+
+      '<div id="practiceSection" class="card hidden">'+
+        '<div class="controls-head"><p class="section-label" style="margin:0;">Focused practice</p>'+
+        '<button class="link-btn" id="closePracticeBtn">&larr; Back to results</button></div>'+
+        '<div id="practiceBody"></div>'+
+      '</div>'+
       '<div class="card" id="studyCard">'+
         '<div class="stats-row"><span id="statProgress"></span><span id="statBest" class="best-badge"></span></div>'+
         '<div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>'+
@@ -137,6 +142,9 @@ window.StudyEngine = (function(){
     var elResultsBody = document.getElementById("resultsBody");
     var elViewResults = document.getElementById("viewResultsBtn");
     var elCloseResults = document.getElementById("closeResultsBtn");
+    var elPractice = document.getElementById("practiceSection");
+    var elPracticeBody = document.getElementById("practiceBody");
+    var elClosePractice = document.getElementById("closePracticeBtn");
 
     var elTrackRow = document.getElementById("trackRow");
     var elGroupHeading = document.getElementById("groupHeading");
@@ -208,11 +216,38 @@ window.StudyEngine = (function(){
     function scopeId(){ return USE_TRACKS ? (trackId+":"+groupId) : sectionId; }
     function bestKey(){ return storageKey+":best:"+scopeId()+":"+mode; }
     function histKey(){ return storageKey+":history"; }
-    async function loadBest(){ if(!hasStore())return null; try{ var r=await window.storage.get(bestKey(),false); return r&&r.value?Number(r.value):null; }catch(e){ return null; } }
-    async function saveBest(v){ if(!hasStore())return; try{ var c=await loadBest(); if(c===null||v>c) await window.storage.set(bestKey(),String(v),false); }catch(e){} }
-    async function loadHistory(){ if(!hasStore())return []; try{ var r=await window.storage.get(histKey(),false); if(!r||!r.value)return []; var p=JSON.parse(r.value); return Array.isArray(p)?p:[]; }catch(e){ return []; } }
-    async function appendHistory(entry){ if(!hasStore())return; try{ var l=await loadHistory(); l.push(entry); while(l.length>300)l.shift(); await window.storage.set(histKey(),JSON.stringify(l),false); }catch(e){} }
-    async function clearHistory(){ if(!hasStore())return; try{ await window.storage.delete(histKey(),false); }catch(e){} }
+    async function loadBest(){ if(!hasStore())return null; try{ var v=window.localStorage.getItem(bestKey()); return v?Number(v):null; }catch(e){ return null; } }
+    async function saveBest(v){ if(!hasStore())return; try{ var c=await loadBest(); if(c===null||v>c) window.localStorage.setItem(bestKey(),String(v)); }catch(e){} }
+    async function loadHistory(){ if(!hasStore())return []; try{ var v=window.localStorage.getItem(histKey()); if(!v)return []; var p=JSON.parse(v); return Array.isArray(p)?p:[]; }catch(e){ return []; } }
+    async function appendHistory(entry){ if(!hasStore())return; try{ var l=await loadHistory(); l.push(entry); while(l.length>300)l.shift(); window.localStorage.setItem(histKey(),JSON.stringify(l)); }catch(e){} }
+    async function clearHistory(){ if(!hasStore())return; try{ window.localStorage.removeItem(histKey()); }catch(e){} }
+
+    // ---- Partial-round saving: if he stops partway through, log what he got
+    // through so far rather than losing it silently. Deliberately synchronous
+    // (direct localStorage calls, no await) so it's safe to call from a
+    // beforeunload handler, where async continuations aren't guaranteed to run.
+    function saveInProgressRoundSync(){
+      if(!hasStore()) return;
+      if(!(reviewed>0 && order.length>0 && pos<order.length)) return;
+      try{
+        var total=cards().length;
+        var score=reviewed-uniq(missed).length;
+        var entry={
+          t:Date.now(), section:scopeId(),
+          sectionLabel:(USE_TRACKS?(trackLabel(trackId)+" \u00b7 "+sectionLabel(groupId)):sectionLabel(sectionId)),
+          mode:mode, total:total, score:score,
+          missed:uniq(missed).map(function(i){ return cards()[i].q; }),
+          partial:true, attempted:reviewed
+        };
+        var raw=window.localStorage.getItem(histKey());
+        var list=raw?JSON.parse(raw):[];
+        if(!Array.isArray(list)) list=[];
+        list.push(entry);
+        while(list.length>300) list.shift();
+        window.localStorage.setItem(histKey(), JSON.stringify(list));
+      }catch(e){}
+    }
+    window.addEventListener("beforeunload", saveInProgressRoundSync);
 
     // ---- Word mastery: per (section-scope, question, mode) streaks ----
     // A word is "Solid" in a mode once the last MASTERY_STREAK attempts in that
@@ -224,11 +259,11 @@ window.StudyEngine = (function(){
     async function loadWordStats(){
       if(wordStatsCache) return wordStatsCache;
       if(!hasStore()){ wordStatsCache={}; return wordStatsCache; }
-      try{ var r=await window.storage.get(wordStatsKey(),false); wordStatsCache=(r&&r.value)?JSON.parse(r.value):{}; }
+      try{ var v=window.localStorage.getItem(wordStatsKey()); wordStatsCache=v?JSON.parse(v):{}; }
       catch(e){ wordStatsCache={}; }
       return wordStatsCache;
     }
-    async function saveWordStats(){ if(!hasStore())return; try{ await window.storage.set(wordStatsKey(), JSON.stringify(wordStatsCache||{}), false); }catch(e){} }
+    async function saveWordStats(){ if(!hasStore())return; try{ window.localStorage.setItem(wordStatsKey(), JSON.stringify(wordStatsCache||{})); }catch(e){} }
     function statKey(scope,q,modeId){ return scope+"|@|"+q+"|@|"+modeId; }
     function scopeForCard(card){ return USE_TRACKS ? (trackId+":"+groupId) : (Q_TO_SECTION[card.q] || sectionId); }
     // Fire-and-forget: never block the UI on a storage round-trip for a single attempt.
@@ -253,6 +288,7 @@ window.StudyEngine = (function(){
     // startRun = prepare a fresh round and show the Start screen (controls expanded).
     // beginRound = collapse controls and show the first card (fired by the Start button).
     async function startRun(){
+      saveInProgressRoundSync();
       renderChips();
       expand(); elControlsToggle.style.display="";
       order=shuffle(cards().length); pos=0; reviewed=0; missed=[]; missedForms={}; answered=false;
@@ -698,17 +734,17 @@ window.StudyEngine = (function(){
       }
 
       function drawZone(){
-        if(placed.length === 0){
-          zone.className = "build-zone";
-          zone.innerHTML = '<span class="build-placeholder">Tap letters below…</span>';
-          return;
-        }
-        // Render placed letters with spaces shown as gaps.
+        zone.className = "build-zone";
         var html = "", li = 0;
         for(var i=0;i<chars.length;i++){
-          if(chars[i]===" "){ if(li>0 && li<=placed.length){ html += '<span class="build-slot space"></span>'; } }
-          else {
-            if(li < placed.length){ html += '<span class="build-slot" data-pos="'+li+'">'+esc(tiles[placed[li]].ch)+'</span>'; }
+          if(chars[i]===" "){
+            html += '<span class="build-slot space"></span>';
+          } else {
+            if(li < placed.length){
+              html += '<span class="build-slot" data-pos="'+li+'">'+esc(tiles[placed[li]].ch)+'</span>';
+            } else {
+              html += '<span class="build-slot empty"></span>';
+            }
             li++;
           }
         }
@@ -718,7 +754,6 @@ window.StudyEngine = (function(){
             if(answered) return;
             var pos = Number(sl.dataset.pos);
             placed.splice(pos, 1);   // remove that letter, shift the rest back
-            zone.className = "build-zone";
             drawZone(); drawBank();
           };
         });
@@ -791,8 +826,13 @@ window.StudyEngine = (function(){
 
     // ---- Results / patterns screen ----
     // ---- Word mastery table: one grid per section/group, rows=words, cols=modes this tool offers ----
+    var practiceCandidates = []; // built fresh each time the mastery table renders: [{scope,q,card}]
+    var practiceSelected = [];   // indices into practiceCandidates currently checked, max 5
+
     async function buildMasteryTable(){
       var stats=await loadWordStats();
+      practiceCandidates = [];
+      practiceSelected = [];
       var scopes=[];
       if(USE_TRACKS){
         TRACKS.forEach(function(t){
@@ -806,12 +846,14 @@ window.StudyEngine = (function(){
         var anyData=scope.cards.some(function(c){ return scope.modes.some(function(m){ return !!stats[statKey(scope.id,c.q,m)]; }); });
         if(!anyData) return;
         html+='<p class="rp-title">'+esc(scope.label)+' \u2014 word mastery</p>';
-        html+='<div class="mastery-table" style="grid-template-columns:minmax(110px,1.5fr) repeat('+scope.modes.length+',1fr);">';
-        html+='<div class="mastery-row mastery-head"><div class="mastery-word"></div>'+
+        html+='<div class="mastery-table" style="grid-template-columns:auto minmax(110px,1.5fr) repeat('+scope.modes.length+',1fr);">';
+        html+='<div class="mastery-row mastery-head"><div class="mastery-cell"></div><div class="mastery-word"></div>'+
           scope.modes.map(function(m){ return '<div class="mastery-cell">'+esc(MODE_LABELS[m]||m)+'</div>'; }).join("")+
           '</div>';
         scope.cards.forEach(function(c){
-          html+='<div class="mastery-row"><div class="mastery-word">'+esc(c.q)+'</div>'+
+          var idx = practiceCandidates.length;
+          practiceCandidates.push({ scope:scope.id, q:c.q, card:c });
+          html+='<div class="mastery-row"><div class="mastery-cell"><input type="checkbox" class="practice-check" data-idx="'+idx+'"></div><div class="mastery-word">'+esc(c.q)+'</div>'+
             scope.modes.map(function(m){
               var s=stats[statKey(scope.id,c.q,m)];
               var status=(!s||!s.attempts)?"new":(s.streak>=MASTERY_STREAK?"solid":"practice");
@@ -837,7 +879,13 @@ window.StudyEngine = (function(){
       var masteryHtml=await buildMasteryTable();
       var groups={};
       history.forEach(function(h){ var k=h.section+"|@|"+h.mode; (groups[k]=groups[k]||[]).push(h); });
-      var html=masteryHtml+(masteryHtml?'<hr style="border:none;border-top:1px solid var(--rule);margin:18px 0;">':'')+
+      var practiceBar = masteryHtml ? (
+        '<div class="practice-bar" id="practiceBar">'+
+          '<span id="practiceCount">0 of 5 words selected for focused practice</span>'+
+          '<button class="btn btn-primary" id="startPracticeBtn" disabled>Start practice &rsaquo;</button>'+
+        '</div>'
+      ) : "";
+      var html=masteryHtml+practiceBar+(masteryHtml?'<hr style="border:none;border-top:1px solid var(--rule);margin:18px 0;">':'')+
         '<p class="results-intro">Every completed round is saved here. The badge shows how many times you\u2019ve missed each question across all your runs — the higher, the more worth drilling.</p>';
       Object.keys(groups).forEach(function(key){
         var runs=groups[key].slice().sort(function(a,b){ return b.t-a.t; });
@@ -849,18 +897,171 @@ window.StudyEngine = (function(){
         if(!items.length){ html+='<p class="run-perfect">No misses recorded here. 🎉</p>'; }
         else { html+='<div>'; items.forEach(function(q){ var n=freq[q]; html+='<div class="miss-item"><div class="miss-q">'+esc(q)+'</div><span class="miss-count '+(n===1?"count-1":"")+'">'+n+'×</span></div>'; }); html+='</div>'; }
         html+='<div>'; runs.forEach(function(r){
-          var mt=(r.missed&&r.missed.length)?'<span class="m">Missed:</span> '+r.missed.map(esc).join(", "):'<span class="run-perfect">Perfect run.</span>';
+          var mt=(r.missed&&r.missed.length)?'<span class="m">Missed:</span> '+r.missed.map(esc).join(", "):('<span class="'+(r.partial?"":"run-perfect")+'">'+(r.partial?"No misses so far.":"Perfect run.")+'</span>');
+          var metaText = r.partial
+            ? (r.attempted+" of "+r.total+" attempted (stopped early) \u2014 "+r.score+" correct")
+            : ((r.mode==="mc"||r.mode==="match")?(r.score+" / "+r.total+" correct"):(r.score+" of "+r.total+" known"));
           html+='<div class="run-row"><span class="run-when">'+fmtDate(r.t)+'</span>'+
-            '<span class="run-meta">'+((r.mode==="mc"||r.mode==="match")?(r.score+" / "+r.total+" correct"):(r.score+" of "+r.total+" known"))+'</span>'+
+            '<span class="run-meta">'+metaText+'</span>'+
             '<div class="run-missed">'+mt+'</div></div>';
         }); html+='</div>';
       });
       html+='<div class="action-row" style="margin-top:18px;"><button class="link-btn" id="clearHistBtn">Clear results history</button></div>';
       elResultsBody.innerHTML=html;
       document.getElementById("clearHistBtn").onclick=async function(){ await clearHistory(); openResults(); };
+
+      if(masteryHtml){
+        var practiceCountEl = document.getElementById("practiceCount");
+        var startPracticeBtn = document.getElementById("startPracticeBtn");
+        function refreshPracticeBar(){
+          var n = practiceSelected.length;
+          practiceCountEl.textContent = n + " of 5 words selected for focused practice";
+          startPracticeBtn.disabled = (n < 1);
+          elResultsBody.querySelectorAll(".practice-check").forEach(function(cb){
+            var idx = Number(cb.dataset.idx);
+            var isChecked = practiceSelected.indexOf(idx) !== -1;
+            cb.checked = isChecked;
+            cb.disabled = (!isChecked && n >= 5);
+          });
+        }
+        elResultsBody.querySelectorAll(".practice-check").forEach(function(cb){
+          cb.onchange = function(){
+            var idx = Number(cb.dataset.idx);
+            if(cb.checked){ if(practiceSelected.indexOf(idx)===-1 && practiceSelected.length<5) practiceSelected.push(idx); }
+            else { practiceSelected = practiceSelected.filter(function(i){ return i!==idx; }); }
+            refreshPracticeBar();
+          };
+        });
+        startPracticeBtn.onclick = function(){
+          var chosen = practiceSelected.map(function(i){ return practiceCandidates[i].card; });
+          if(chosen.length) startFocusedPractice(chosen);
+        };
+        refreshPracticeBar();
+      }
     }
     function closeResults(){ elResults.classList.add("hidden"); elViewResults.style.display=""; elStudyCard.classList.remove("hidden"); }
     function fmtDate(ts){ try{ var d=new Date(ts); var mo=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]; return mo[d.getMonth()]+" "+d.getDate()+", "+d.toLocaleTimeString(undefined,{hour:"numeric",minute:"2-digit"}); }catch(e){ return ""; } }
+
+    // ---- Focused Practice: pick up to 5 words in Results, copy-practice them
+    // 5x each, then a mini quiz on just those words. ----
+    function startFocusedPractice(cards){
+      elResults.classList.add("hidden");
+      elPractice.classList.remove("hidden");
+      renderCopyPractice(cards);
+    }
+    function closePractice(){ elPractice.classList.add("hidden"); elResults.classList.remove("hidden"); }
+
+    var practiceLastFocused = null;
+    function renderCopyPractice(cards){
+      var html = '<p class="sub" style="margin:0 0 12px;">Write each word 5 times, then a quick quiz on just these '+cards.length+'.</p>'+
+        accentRow("practiceAccentTarget")+
+        '<div class="practice-grid">';
+      cards.forEach(function(card, ci){
+        var badge = card.changed ? '<span class="changed-badge">corrected</span>' : '';
+        html += '<div class="practice-word-card">'+
+          '<p class="practice-word-en">'+esc(card.q)+'</p>'+
+          '<p class="practice-word-es">'+esc(card.a)+badge+'</p>'+
+          '<div class="practice-reps">'+
+            [0,1,2,3,4].map(function(){ return '<input type="text" class="conj-input practice-rep-input" data-ci="'+ci+'" autocomplete="off" autocapitalize="off" spellcheck="false">'; }).join("")+
+          '</div>'+
+        '</div>';
+      });
+      html += '</div><div class="action-row"><button class="btn btn-primary" id="toQuizBtn">Continue to mini quiz &rsaquo;</button></div>';
+      elPracticeBody.innerHTML = html;
+
+      practiceLastFocused = null;
+      elPracticeBody.querySelectorAll(".practice-rep-input").forEach(function(inp){
+        inp.addEventListener("focus", function(){ practiceLastFocused = inp; });
+        inp.addEventListener("blur", function(){
+          var val = inp.value.trim();
+          inp.classList.remove("conj-ok","conj-bad");
+          if(!val) return;
+          var card = cards[Number(inp.dataset.ci)];
+          inp.classList.add(strictEqual(val, card.a) ? "conj-ok" : "conj-bad");
+        });
+      });
+      elPracticeBody.querySelectorAll(".accent-row .accent-key").forEach(function(btn){
+        btn.addEventListener("mousedown", function(e){ e.preventDefault(); });
+        btn.onclick = function(){
+          var el = practiceLastFocused;
+          if(!el || !document.contains(el)) return;
+          var s=el.selectionStart==null?el.value.length:el.selectionStart;
+          var e2=el.selectionEnd==null?el.value.length:el.selectionEnd;
+          el.value = el.value.slice(0,s)+btn.dataset.char+el.value.slice(e2);
+          el.focus(); try{ el.setSelectionRange(s+1,s+1); }catch(_){}
+        };
+      });
+      document.getElementById("toQuizBtn").onclick = function(){ renderFocusedQuiz(cards); };
+    }
+
+    function renderFocusedQuiz(cards){
+      var quizOrder = shuffle(cards.length);
+      var quizPos = 0, quizMissed = [], quizAnswered = false;
+
+      function renderQ(){
+        if(quizPos >= quizOrder.length){ finishQuiz(); return; }
+        quizAnswered = false;
+        var card = cards[quizOrder[quizPos]];
+        elPracticeBody.innerHTML =
+          '<p class="prompt-eyebrow">Mini quiz \u2014 question '+(quizPos+1)+' of '+quizOrder.length+'</p>'+
+          '<p class="prompt">'+esc(card.q)+'</p>'+
+          '<textarea class="write-area" id="focusQuizBox" rows="1" placeholder="Type your answer..."></textarea>'+
+          accentRow("focusQuizBox")+
+          '<div class="action-row"><button class="btn btn-primary" id="focusCheckBtn">Check answer</button></div>'+
+          '<div id="focusRevealArea"></div>';
+        var box = document.getElementById("focusQuizBox"); box.focus();
+        wireAccents(elPracticeBody, box);
+        document.getElementById("focusCheckBtn").onclick = function(){
+          if(quizAnswered) return; quizAnswered = true;
+          box.disabled = true; document.getElementById("focusCheckBtn").disabled = true;
+          var blank = !box.value.trim();
+          var autoCorrect = !blank && strictEqual(box.value, card.a);
+          var subLine = blank ? "Nothing was typed." : (autoCorrect ? "Exact match." : "That doesn\u2019t match \u2014 check spelling and accents.");
+          var badge = card.changed ? '<span class="changed-badge">corrected</span>' : '';
+          function renderVerdict(isCorrect){
+            var banner='<div class="verdict '+(isCorrect?"correct":"wrong")+'">'+
+              '<p class="v-line">'+(isCorrect?"Marked correct":"Marked as missed")+'</p>'+
+              '<p class="v-sub">'+subLine+' You can change this below.</p></div>';
+            var actions='<div class="verdict-actions"><p class="lead">'+(isCorrect?"Not right after all?":"Actually got it?")+'</p>'+
+              '<div class="action-row">'+
+                (isCorrect?'<button class="btn btn-ghost" id="focusFlipBtn">Change to missed</button>':'<button class="btn btn-ghost" id="focusFlipBtn">Change to correct</button>')+
+                '<button class="btn btn-primary" id="focusAcceptBtn">Accept &amp; continue &rsaquo;</button>'+
+              '</div></div>';
+            document.getElementById("focusRevealArea").innerHTML =
+              '<div class="model-answer"><p class="ma-tag">Answer'+badge+'</p><p>'+esc(card.a)+'</p></div>'+
+              changedNote(card)+'<div id="focusVerdictWrap">'+banner+actions+'</div>';
+            document.getElementById("focusFlipBtn").onclick=function(){ renderVerdict(!isCorrect); };
+            document.getElementById("focusAcceptBtn").onclick=function(){
+              recordAttempt(card, "write", isCorrect);
+              if(!isCorrect) quizMissed.push(card.q);
+              quizPos++; renderQ();
+            };
+          }
+          renderVerdict(autoCorrect);
+        };
+      }
+
+      async function finishQuiz(){
+        var total = cards.length;
+        var um = uniq(quizMissed);
+        var score = total - um.length;
+        await appendHistory({ t:Date.now(), section:"focused-practice", sectionLabel:"Focused Practice", mode:"write", total:total, score:score, missed: um });
+        var reviewHtml;
+        if(um.length){
+          reviewHtml = '<div class="review-block"><p class="review-title">Review these ('+um.length+'):</p><ul class="review-list">'+
+            um.map(function(q){ return '<li><span class="rq">'+esc(q)+'</span></li>'; }).join("")+'</ul></div>';
+        } else {
+          reviewHtml = '<p class="review-perfect">Perfect \u2014 '+total+' for '+total+'! \ud83c\udf89</p>';
+        }
+        elPracticeBody.innerHTML =
+          '<div class="summary"><p class="big">'+score+' / '+total+'</p><p>correct</p>'+reviewHtml+
+          '<div class="action-row" style="justify-content:center"><button class="btn btn-primary" id="practiceDoneBtn">Back to results</button></div></div>';
+        document.getElementById("practiceDoneBtn").onclick = function(){ closePractice(); openResults(); };
+      }
+
+      renderQ();
+    }
+    elClosePractice.onclick = function(){ closePractice(); };
 
     elViewResults.onclick=openResults; elCloseResults.onclick=closeResults;
 

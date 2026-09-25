@@ -72,6 +72,13 @@ This reads to the student as **Match → Some help → From scratch** — recogn
   - a **per-run log** (date, score, what was missed).
 - **MUST** — A way to **clear** the history.
 - History is keyed per tool, so tools don't mix.
+- **MUST** — Stopping partway through a round still saves progress, not just full
+  completions. If he switches section/mode mid-round, or just closes the tab,
+  that partial attempt is logged as its own run — "8 of 12 attempted (stopped
+  early) — 7 correct" — rather than being silently lost. Partial rounds do
+  **not** count toward the "Best" score (only a full completion can set a new
+  best), but individual word attempts within a partial round still update word
+  mastery (§3a) immediately, same as any other attempt.
 
 ## 3a. Word mastery (per word, per mode)
 
@@ -96,6 +103,35 @@ not just "missed how many times" but "is this word actually solid right now."
 - This is tracked automatically by the engine for every mode (`flash`, `write`,
   `mc`, `match`, `build`, `conj`, `conjtable`) — a new tool gets it for free,
   nothing to configure.
+
+## 3b. Focused Practice (pick up to 5 words, copy 5x, then a mini quiz)
+
+From the mastery table (§3a), each word row has a checkbox — **up to 5 words,
+from anywhere in the tool** (not limited to one section), can be picked for a
+focused drill:
+
+1. **Copy-practice.** A new screen shows one card per chosen word — the
+   English prompt, the Spanish answer shown directly, and 5 blank inputs to
+   write it out. Each input gets a gentle color cue on blur (green/red,
+   reusing the same look as the verb-conjugation table) so a typo gets caught
+   while copying, but there's no hard gate — he can move on whenever he wants,
+   filled in or not.
+2. **Mini quiz.** Same 5 words, shuffled order, this time with nothing shown —
+   ordinary write-in grading (accept/override, accent row, corrected-answer
+   badges, all identical to normal From-scratch mode).
+- **MUST** — The mini quiz's per-word results feed the *same* word-mastery
+  streaks (§3a) as any other From-scratch attempt — practicing this way
+  genuinely moves the needle on his real mastery data, it isn't a side track.
+  It's recorded under the `write` mode key specifically, so a tool needs
+  `write` among its declared `modes` for Focused Practice results to have a
+  column to show up in.
+- The mini quiz is logged as its own "Focused Practice" entry in the results
+  history (§3), but does **not** count toward any section's "Best" score —
+  there's no stable, comparable baseline for an ad-hoc, differently-sized set
+  of words each time.
+- The copy-practice phase itself is **not** graded or recorded anywhere — it's
+  looking-at-the-answer practice, not a recall test, so it shouldn't move the
+  mastery streak (only the quiz that follows it does).
 
 ## 4. Corrected answers (when we fix the student's original)
 
